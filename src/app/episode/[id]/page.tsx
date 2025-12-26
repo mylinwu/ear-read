@@ -2,22 +2,32 @@
 
 import { use, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Headphones, CheckCircle2, Settings2, Plus, Minus } from "lucide-react";
+import { Headphones, CheckCircle2, Settings2, Plus, Minus } from "lucide-react";
 import { useStore } from "@/store/useStore";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
+import { Header } from "@/components/Header";
+import { useMount } from "ahooks";
 
 export default function EpisodeDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
   const searchParams = useSearchParams();
   const courseId = searchParams.get("courseId");
+  const subscriptionId = searchParams.get("sid");
   
-  const { subscription, currentResourceId, setCurrentResource, isPlaying, markAsLearned, readingSettings, setReadingSettings } = useStore();
+  const { subscriptions, getSubscriptionById, currentResourceId, setCurrentResource, isPlaying, markAsLearned, readingSettings, setReadingSettings } = useStore();
   const [content, setContent] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
+  useMount(() => {
+    setMounted(true);
+  });
+
+  // 查找对应的订阅源和课程
+  const subscription = subscriptionId ? getSubscriptionById(subscriptionId) : subscriptions[0];
   const course = subscription?.courses.find(c => c.id === courseId);
   const resource = course?.resources.find(r => r.id === id);
   const resourceIndex = course?.resources.findIndex(r => r.id === id) ?? -1;
@@ -56,51 +66,52 @@ export default function EpisodeDetailPage({ params }: { params: Promise<{ id: st
   useEffect(() => {
     const handleScroll = () => {
       if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 100) {
-        if (courseId && id && !resource?.isLearned) {
-          markAsLearned(courseId, id);
+        if (subscription && courseId && id && !resource?.isLearned) {
+          markAsLearned(subscription.id, courseId, id);
         }
       }
     };
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [courseId, id, resource?.isLearned, markAsLearned]);
+  }, [subscription, courseId, id, resource?.isLearned, markAsLearned]);
 
-  if (!resource) {
+  if (!mounted) {
+    return <div className="pt-6 pb-32 min-h-screen" />; // 渲染一个空容器占位
+  }
+
+  if (!resource || !subscription) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh]">
-        <p className="text-muted-foreground">节目不存在</p>
+        <Header title="节目详情" />
+        <p className="text-muted-foreground mt-20">节目不存在</p>
       </div>
     );
   }
 
   const handleQuickPlay = () => {
-    if (courseId && course) {
+    if (subscription && courseId && course) {
        // 逻辑：把当前及后面19条加入播放列表
        const startIndex = resourceIndex;
        const playlist = course.resources.slice(startIndex, startIndex + 20);
-       setCurrentResource(courseId, resource.id, playlist);
+       setCurrentResource(subscription.id, courseId, resource.id, playlist);
     }
   };
 
   const navigateTo = (dir: 'prev' | 'next') => {
-    if (!course) return;
+    if (!course || !subscription) return;
     const nextIdx = dir === 'prev' ? resourceIndex - 1 : resourceIndex + 1;
     const nextRes = course.resources[nextIdx];
     if (nextRes) {
-      router.push(`/episode/${nextRes.id}?courseId=${courseId}`);
+      router.push(`/episode/${nextRes.id}?courseId=${courseId}&sid=${subscription.id}`);
       window.scrollTo(0, 0);
     }
   };
 
   return (
     <div className="pt-6 pb-32">
-      {/* 顶部导航 */}
-      <div className="fixed top-0 left-0 right-0 z-40 glass border-b border-border">
-        <div className="container-tight flex items-center justify-between h-16">
-          <button onClick={() => router.back()} className="p-2 hover:bg-muted rounded-xl transition-colors">
-            <ArrowLeft size={24} />
-          </button>
-
+      <Header 
+        title="" 
+        rightContent={(
           <div className="flex items-center gap-2">
             <button 
               onClick={() => setSettingsOpen(true)}
@@ -119,8 +130,8 @@ export default function EpisodeDetailPage({ params }: { params: Promise<{ id: st
               <Headphones size={22} className={isCurrentPlaying ? "animate-pulse" : ""} />
             </button>
           </div>
-        </div>
-      </div>
+        )}
+      />
 
       <div className="mt-20">
         <div className="mb-6 px-2">
@@ -161,14 +172,14 @@ export default function EpisodeDetailPage({ params }: { params: Promise<{ id: st
                 ol: ({...props}) => <ol className="list-decimal list-inside mb-6 space-y-2 pl-2 text-foreground/80" {...props} />,
                 li: ({...props}) => <li className="marker:text-primary marker:font-bold" {...props} />,
                 blockquote: ({...props}) => (
-                  <blockquote className="border-l-4 border-primary/30 bg-primary/5 px-6 py-4 my-8 rounded-r-2xl italic text-foreground/70 quote-icon" {...props} />
+                  <blockquote className="border-l-4 border-primary/30 px-6 py-4 my-8 rounded-r-2xl italic text-foreground/70 quote-icon" {...props} />
                 ),
                 img: ({...props}) => (
                   <img className="rounded-3xl shadow-lg my-8 mx-auto border border-border/50" {...props} />
                 ),
                 hr: () => <hr className="my-10 border-t-2 border-border/50 w-1/4 mx-auto" />,
                 a: ({...props}) => <a className="text-primary underline underline-offset-4 font-medium hover:opacity-80 transition-opacity" {...props} />,
-                strong: ({...props}) => <strong className="text-foreground font-black bg-primary/10 px-1 rounded-sm" {...props} />,
+                strong: ({...props}) => <strong className="text-foreground font-black px-1 rounded-sm" {...props} />,
                 code: ({...props}) => <code className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono text-primary" {...props} />,
               }}
             >

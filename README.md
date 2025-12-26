@@ -1,22 +1,23 @@
 # Ear Read (耳读)
 
-Ear Read 是一个专注于音频学习的 Web 应用程序，由 Next.js 构建。它旨在提供类似“得到”或“微信”文章阅读的优质用户体验，支持 PWA（渐进式 Web 应用），可安装在移动设备上使用。
+Ear Read 是一个专注于音频学习的 Web 应用程序，由 Next.js 构建。它旨在提供类似"得到"或"微信"文章阅读的优质用户体验，支持 PWA（渐进式 Web 应用），可安装在移动设备上使用。
 
 ## ✨ 主要功能
 
 - **沉浸式音频播放**: 全局悬浮播放器，支持播放列表管理、倍速播放、进度记忆。
 - **课程与文章**: 支持 Markdown 渲染的富文本课程内容，提供舒适的阅读体验。
-- **订阅管理**: 支持添加和管理外部课程资源（基于 RSS/JSON）。[查看编写指南](#订阅文件编写指南)
+- **多订阅管理**: 支持添加和管理多个外部课程资源（基于 RSS/JSON）。[查看编写指南](#订阅文件编写指南)
+- **全局搜索**: 快速搜索所有订阅源中的课程和节目标题。
+- **深色模式**: 支持浅色/深色/跟随系统三种主题模式切换。
 - **离线支持**: 集成 PWA 功能，支持离线访问和桌面/主屏幕安装。
-- **本地化存储**: 使用 Dexie.js (IndexedDB) 在本地存储播放进度和订阅数据，保护隐私。
+- **本地化存储**: 使用 LocalStorage 在本地存储播放进度和订阅数据，保护隐私。
 
 ## 🛠️ 技术栈
 
-- **框架**: [Next.js 15](https://nextjs.org/) (App Router)
+- **框架**: [Next.js 16](https://nextjs.org/) (App Router)
 - **UI 库**: React 19
 - **样式**: [Tailwind CSS v4](https://tailwindcss.com/)
 - **状态管理**: [Zustand](https://github.com/pmndrs/zustand)
-- **数据库**: [Dexie.js](https://dexie.org/)
 - **PWA**: [@ducanh2912/next-pwa](https://github.com/DuCanhGH/next-pwa)
 - **图标**: Lucide React
 

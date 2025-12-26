@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useMount } from "ahooks";
 import {
   ChevronRight,
   Database,
@@ -9,19 +10,22 @@ import {
   Clock,
   Code2,
   MonitorCheck,
+  Palette,
+  History,
 } from "lucide-react";
+import Link from "next/link";
 import { useStore } from "@/store/useStore";
 import { SubscriptionModal } from "@/components/SubscriptionModal";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
 
 function DevDebugInfo() {
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+  useMount(() => {
     setMounted(true);
-  }, []);
+  });
 
   if (!mounted) return null;
 
@@ -71,8 +75,17 @@ function DevDebugInfo() {
 }
 
 export default function SettingsPage() {
-  const { subscription, clearSubscription, clearPlaylist } = useStore();
+  const { subscriptions, clearSubscription, clearPlaylist } = useStore();
   const [modalOpen, setModalOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useMount(() => {
+    setMounted(true);
+  });
+
+  if (!mounted) {
+    return <div className="pt-8 space-y-8 pb-32" />;
+  }
 
   const handleClearCache = () => {
     if (confirm("确定要清除所有缓存吗？这将清除订阅数据和播放进度。")) {
@@ -83,21 +96,32 @@ export default function SettingsPage() {
     }
   };
 
-  const lastUpdateStr = subscription?.lastUpdatedAt
-    ? formatDistanceToNow(new Date(subscription.lastUpdatedAt), {
-        addSuffix: true,
-        locale: zhCN,
-      })
-    : "从未刷新";
+  // 获取最近更新时间（所有订阅中最新的）
+  const getLastUpdateStr = () => {
+    if (subscriptions.length === 0) return "从未刷新";
+    
+    const latestDate = subscriptions.reduce((latest, sub) => {
+      const subDate = new Date(sub.lastUpdatedAt);
+      return subDate > latest ? subDate : latest;
+    }, new Date(0));
+
+    if (latestDate.getTime() === 0) return "从未刷新";
+    
+    return formatDistanceToNow(latestDate, {
+      addSuffix: true,
+      locale: zhCN,
+    });
+  };
 
   return (
-    <div className="pt-8 space-y-8">
+    <div className="pt-8 space-y-8 pb-32">
       <div>
         <h1 className="text-3xl font-bold mb-2">设置</h1>
         <p className="text-muted-foreground">管理您的订阅与应用偏好</p>
       </div>
 
       <div className="space-y-4">
+        {/* 订阅管理 */}
         <section className="bg-card border border-border rounded-2xl overflow-hidden">
           <button
             onClick={() => setModalOpen(true)}
@@ -109,9 +133,13 @@ export default function SettingsPage() {
               </div>
               <div className="text-left">
                 <div className="font-semibold">订阅管理</div>
-                <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
-                  <Clock size={12} />
-                  上次刷新: {lastUpdateStr}
+                <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2">
+                  <span>{subscriptions.length} 个订阅源</span>
+                  <span>·</span>
+                  <span className="flex items-center gap-1">
+                    <Clock size={12} />
+                    {getLastUpdateStr()}
+                  </span>
                 </div>
               </div>
             </div>
@@ -119,6 +147,46 @@ export default function SettingsPage() {
           </button>
         </section>
 
+        {/* 播放历史 */}
+        <section className="bg-card border border-border rounded-2xl overflow-hidden">
+          <Link
+            href="/history"
+            className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors group"
+          >
+            <div className="flex items-center gap-4">
+              <div className="p-2 bg-amber-500/10 text-amber-500 rounded-xl group-hover:scale-110 transition-transform">
+                <History size={24} />
+              </div>
+              <div className="text-left">
+                <div className="font-semibold">播放历史</div>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  查看最近播放的内容
+                </div>
+              </div>
+            </div>
+            <ChevronRight className="text-muted-foreground" size={20} />
+          </Link>
+        </section>
+
+        {/* 外观设置 */}
+        <section className="bg-card border border-border rounded-2xl overflow-hidden">
+          <div className="p-4">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="p-2 bg-purple-500/10 text-purple-500 rounded-xl">
+                <Palette size={24} />
+              </div>
+              <div>
+                <div className="font-semibold">外观</div>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  选择您喜欢的主题模式
+                </div>
+              </div>
+            </div>
+            <ThemeToggle />
+          </div>
+        </section>
+
+        {/* 清除缓存 */}
         <section className="bg-card border border-border rounded-2xl overflow-hidden">
           <button
             onClick={handleClearCache}
@@ -143,7 +211,7 @@ export default function SettingsPage() {
         <div className="p-4 text-center">
           <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
             <Database size={12} />
-            当前版本: 1.0.0 (Web)
+            当前版本: 1.1.0 (Web)
           </div>
         </div>
       </div>

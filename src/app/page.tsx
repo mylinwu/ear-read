@@ -1,15 +1,27 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useStore } from "@/store/useStore";
 import { BookMarked, PlusCircle } from "lucide-react";
+import { useMount } from "ahooks";
 
 export default function HomePage() {
-  const { subscription } = useStore();
-  // 过滤掉0个节目的课程
-  const courses = (subscription?.courses || []).filter(c => c.resources && c.resources.length > 0);
+  const { subscriptions, getAllCourses } = useStore();
+  const [mounted, setMounted] = useState(false);
+  
+  useMount(() => {
+    setMounted(true);
+  });
+  
+  // 获取所有课程（带订阅源信息）
+  const allCourses = getAllCourses();
 
-  if (courses.length === 0) {
+  if (!mounted) {
+    return <div className="pt-4 min-h-[70vh]" />; // 初始占位
+  }
+
+  if (allCourses.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] text-center px-6">
         <div className="w-48 h-48 bg-muted/30 rounded-full flex items-center justify-center mb-8 animate-float">
@@ -30,30 +42,43 @@ export default function HomePage() {
     );
   }
 
+  // 如果只有一个订阅源，不显示订阅源标签
+  const showSubscriptionLabel = subscriptions.length > 1;
+
   return (
     <div className="pt-4 pb-50 space-y-5">
       <div>
         <h1 className="text-2xl font-bold mb-1">我的课程</h1>
-        <p className="text-sm text-muted-foreground">欢迎回来，继续您的学习规划</p>
+        <p className="text-sm text-muted-foreground">
+          欢迎回来，继续您的学习规划
+          {subscriptions.length > 1 && (
+            <span className="ml-2">· {subscriptions.length} 个订阅源</span>
+          )}
+        </p>
       </div>
 
       <div className="grid grid-cols-1 gap-4">
-        {courses.map((course, index) => (
+        {allCourses.map(({ subscriptionId, subscriptionName, course }, index) => (
           <Link 
-            key={course.id || `course-${index}`}
-            href={`/course/${course.id}`}
+            key={`${subscriptionId}-${course.id}-${index}`}
+            href={`/course/${course.id}?sid=${subscriptionId}`}
             className="group relative flex items-center justify-between p-4 bg-card border border-border rounded-2xl hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5 transition-all"
           >
             <div className="flex-1 min-w-0">
               <h3 className="font-bold text-base leading-tight mb-1.5 line-clamp-2 group-hover:text-primary transition-colors">
                 {course.title}
               </h3>
-              <div className="text-sm text-muted-foreground flex items-center gap-3">
+              <div className="text-sm text-muted-foreground flex items-center gap-3 flex-wrap">
                 <span>{course.resources?.length || 0} 个节目</span>
                 {course.lastResourceId && (
                    <span className="bg-primary/10 text-primary px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">
                     正在学习
                    </span>
+                )}
+                {showSubscriptionLabel && (
+                  <span className="bg-muted px-2 py-0.5 rounded text-[10px]">
+                    {subscriptionName}
+                  </span>
                 )}
               </div>
             </div>

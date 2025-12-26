@@ -6,6 +6,7 @@ import {
   Play, Pause, X, List,  
   Loader2, FileText
 } from "lucide-react";
+import { useMount } from "ahooks";
 import { useStore } from "@/store/useStore";
 import { cn } from "@/lib/utils";
 import { DEFAULT_COVER } from "@/lib/assets";
@@ -14,7 +15,7 @@ export function FloatingPlayer() {
   const router = useRouter();
   const pathname = usePathname();
   const { 
-    playlist, currentResourceId, currentCourseId,
+    playlist, currentResourceId, currentCourseId, currentSubscriptionId,
     isPlaying, setIsPlaying, 
     playbackRate, setPlaybackRate,
     currentTime, setCurrentTime,
@@ -23,7 +24,8 @@ export function FloatingPlayer() {
     removeFromPlaylist, clearPlaylist,
     markAsLearned, updateProgress,
     setCurrentResource,
-    subscription
+    getSubscriptionById,
+    addToHistory
   } = useStore();
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -32,15 +34,18 @@ export function FloatingPlayer() {
   const progressBarRef = useRef<HTMLDivElement>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useMount(() => {
+    setMounted(true);
+  });
 
   const currentResource = playlist.find(p => p.id === currentResourceId);
+  const subscription = currentSubscriptionId ? getSubscriptionById(currentSubscriptionId) : undefined;
   const course = subscription?.courses.find(c => c.id === currentCourseId);
   
   // Decide bottom position based on whether Nav is visible
-  const hasNav = pathname === "/" || pathname === "/settings";
-
-  // ... (getAudioUrl and other callbacks remain same, skipping repeat code for brevity implies using existing, but I must provide full functional replacement for the modified block or context. 
-  // Since I am providing a large chunk replacement, I'll include the necessary logic.)
+  const hasNav = pathname === "/" || pathname === "/settings" || pathname === "/search";
 
   const getAudioUrl = useCallback(() => {
     if (!currentResource || !subscription || !course) return "";
@@ -58,17 +63,17 @@ export function FloatingPlayer() {
 
   const playPrev = useCallback(() => {
     const idx = playlist.findIndex(p => p.id === currentResourceId);
-    if (idx > 0 && currentCourseId) {
-      setCurrentResource(currentCourseId, playlist[idx - 1].id, playlist);
+    if (idx > 0 && currentCourseId && currentSubscriptionId) {
+      setCurrentResource(currentSubscriptionId, currentCourseId, playlist[idx - 1].id, playlist);
     }
-  }, [playlist, currentResourceId, currentCourseId, setCurrentResource]);
+  }, [playlist, currentResourceId, currentCourseId, currentSubscriptionId, setCurrentResource]);
 
   const playNext = useCallback(() => {
     const idx = playlist.findIndex(p => p.id === currentResourceId);
-    if (idx < playlist.length - 1 && currentCourseId) {
-      setCurrentResource(currentCourseId, playlist[idx + 1].id, playlist);
+    if (idx < playlist.length - 1 && currentCourseId && currentSubscriptionId) {
+      setCurrentResource(currentSubscriptionId, currentCourseId, playlist[idx + 1].id, playlist);
     }
-  }, [playlist, currentResourceId, currentCourseId, setCurrentResource]);
+  }, [playlist, currentResourceId, currentCourseId, currentSubscriptionId, setCurrentResource]);
 
   const togglePlay = useCallback(() => setIsPlaying(!isPlaying), [isPlaying, setIsPlaying]);
 
@@ -80,11 +85,11 @@ export function FloatingPlayer() {
       setCurrentTime(audio.currentTime);
       const currentIntTime = Math.floor(audio.currentTime);
       if (
-        currentResourceId && currentCourseId && 
+        currentResourceId && currentCourseId && currentSubscriptionId && 
         currentIntTime > 0 && currentIntTime % 5 === 0 &&
         currentIntTime !== lastSavedTimeRef.current
       ) {
-        updateProgress(currentCourseId, currentResourceId, audio.currentTime);
+        updateProgress(currentSubscriptionId, currentCourseId, currentResourceId, audio.currentTime);
         lastSavedTimeRef.current = currentIntTime;
       }
     };
@@ -98,7 +103,9 @@ export function FloatingPlayer() {
     };
 
     const handleEndedByAudio = () => {
-      if (currentCourseId && currentResourceId) markAsLearned(currentCourseId, currentResourceId);
+      if (currentSubscriptionId && currentCourseId && currentResourceId) {
+        markAsLearned(currentSubscriptionId, currentCourseId, currentResourceId);
+      }
       playNext();
     };
 
@@ -121,7 +128,7 @@ export function FloatingPlayer() {
       audio.removeEventListener("playing", handlePlaying);
       audio.removeEventListener("error", handleError);
     };
-  }, [currentResourceId, currentCourseId, currentResource?.currentTime, markAsLearned, playNext, setCurrentTime, setDuration, setIsLoading, setIsPlaying, updateProgress, playbackRate]);
+  }, [currentResourceId, currentCourseId, currentSubscriptionId, currentResource?.currentTime, markAsLearned, playNext, setCurrentTime, setDuration, setIsLoading, setIsPlaying, updateProgress, playbackRate]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -133,6 +140,18 @@ export function FloatingPlayer() {
       audio.src = url;
       audio.load();
       setIsLoading(true);
+      
+      // 添加到播放历史
+      if (currentResource && course && subscription && currentSubscriptionId && currentCourseId) {
+        addToHistory({
+          subscriptionId: currentSubscriptionId,
+          subscriptionName: subscription.name,
+          courseId: currentCourseId,
+          courseTitle: course.title,
+          resourceId: currentResource.id,
+          resourceTitle: currentResource.title
+        });
+      }
     }
 
     if (isPlaying) audio.play().catch(() => setIsPlaying(false));
@@ -179,7 +198,7 @@ export function FloatingPlayer() {
       navigator.mediaSession.setActionHandler('previoustrack', playPrev);
       navigator.mediaSession.setActionHandler('nexttrack', playNext);
     }
-  }, [isPlaying, currentResourceId, playbackRate, getAudioUrl, course?.title, course?.cover, subscription?.url, currentResource, playNext, playPrev, setIsPlaying, setIsLoading, skip]);
+  }, [isPlaying, currentResourceId, playbackRate, getAudioUrl, course?.title, course?.cover, subscription?.url, currentResource, playNext, playPrev, setIsPlaying, setIsLoading, skip, addToHistory, course, currentCourseId, currentSubscriptionId, subscription]);
 
   // 专门处理倍速变化的 useEffect
   useEffect(() => {
@@ -230,7 +249,7 @@ export function FloatingPlayer() {
     setPlaybackRate(rates[nextIdx]);
   };
 
-  if (playlist.length === 0) return null;
+  if (!mounted || playlist.length === 0) return null;
 
   const progressPercent = duration ? (currentTime / duration) * 100 : 0;
 
@@ -381,8 +400,8 @@ export function FloatingPlayer() {
                     <div 
                       className="flex-1 min-w-0 mr-3 cursor-pointer flex items-center gap-3"
                       onClick={() => {
-                        if (currentCourseId) {
-                          setCurrentResource(currentCourseId, item.id, playlist);
+                        if (currentCourseId && currentSubscriptionId) {
+                          setCurrentResource(currentSubscriptionId, currentCourseId, item.id, playlist);
                         }
                       }}
                     >
@@ -407,8 +426,8 @@ export function FloatingPlayer() {
                       <button 
                         onClick={(e) => { 
                           e.stopPropagation(); 
-                          if (currentCourseId) {
-                            router.push(`/episode/${item.id}?courseId=${currentCourseId}`);
+                          if (currentCourseId && currentSubscriptionId) {
+                            router.push(`/episode/${item.id}?courseId=${currentCourseId}&sid=${currentSubscriptionId}`);
                             setDrawerOpen(false);
                           }
                         }}

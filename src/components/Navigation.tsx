@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, Settings } from "lucide-react";
+import { BookOpen, Search, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function Navigation() {
   const pathname = usePathname();
   
-  // Only show navigation on Home and Settings
-  const isVisible = pathname === "/" || pathname === "/settings";
+  // Only show navigation on Home, Search and Settings
+  const isVisible = pathname === "/" || pathname === "/settings" || pathname === "/search";
 
   if (!isVisible) return null;
 
@@ -18,6 +18,11 @@ export function Navigation() {
       label: "课程列表",
       href: "/",
       icon: BookOpen,
+    },
+    {
+      label: "搜索",
+      href: "/search",
+      icon: Search,
     },
     {
       label: "设置",
