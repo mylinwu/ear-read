@@ -6,7 +6,7 @@ Ear Read 是一个专注于音频学习的 Web 应用程序，由 Next.js 构建
 
 - **沉浸式音频播放**: 全局悬浮播放器，支持播放列表管理、倍速播放、进度记忆。
 - **课程与文章**: 支持 Markdown 渲染的富文本课程内容，提供舒适的阅读体验。
-- **订阅管理**: 支持添加和管理外部课程资源（基于 RSS/JSON）。
+- **订阅管理**: 支持添加和管理外部课程资源（基于 RSS/JSON）。[查看编写指南](#订阅文件编写指南)
 - **离线支持**: 集成 PWA 功能，支持离线访问和桌面/主屏幕安装。
 - **本地化存储**: 使用 Dexie.js (IndexedDB) 在本地存储播放进度和订阅数据，保护隐私。
 
@@ -45,4 +45,56 @@ Ear Read 是一个专注于音频学习的 Web 应用程序，由 Next.js 构建
 
 ## 🤝 贡献
 
-欢迎提交 Issue 和 Pull Request 来改进这个项目。
+ 欢迎提交 Issue 和 Pull Request 来改进这个项目。
+
+## 订阅文件编写指南
+
+ 为了让 Ear Read 能够加载您的课程资源，您需要按以下格式编写一个 JSON 文件（通常命名为 `rss.json`，并将其托管在支持跨域请求的服务器上）。
+
+### 1. 基本结构
+
+ 订阅文件是一个包含多个“课程（Course）”对象的 JSON 数组。
+
+ ```json
+ [
+   {
+     "id": "course-id-1",
+     "title": "课程名称",
+     "cover": "cover.jpg", 
+     "resources": [
+       {
+         "id": "resource-id-1",
+         "title": "标题：第一讲",
+         "audio_file": "audio/01.mp3",
+         "content_file": "docs/01.md"
+       }
+     ]
+   }
+ ]
+ ```
+
+### 2. 字段详细说明
+
+ | 字段 | 类型 | 说明 | 是否必填 |
+ | :--- | :--- | :--- | :--- |
+ | **课程 (Course)** | | | |
+ | `id` | String | 课程的唯一标识符 | 是 |
+ | `title` | String | 课程的显示标题 | 是 |
+ | `cover` | String | 课程封面图的 URL 或相对路径 | 否 |
+ | `resources` | Array | 该课程下的资源/单讲列表 | 是 |
+ | **资源 (Resource)** | | | |
+ | `id` | String | 单讲内容的唯一标识符 | 是 |
+ | `title` | String | 单讲内容的显示标题 | 是 |
+ | `audio_file` | String | 音频文件路径（相对于 JSON 的路径或绝对 URL） | 否 |
+ | `content_file` | String | 内容 Markdown 文件路径（相对于 JSON 的路径或绝对 URL） | 否 |
+
+### 3. 路径说明
+
+- `audio_file` 和 `content_file` 建议使用 **相对路径**。
+- 程序会自动基于订阅 JSON 的 URL 来解析这些相对路径。
+- **跨域提示**: 托管 JSON 的服务器必须支持 CORS (跨域资源共享)，否则浏览器将无法加载。
+
+### 4. 示例参考
+
+ 这是一个公开的订阅示例：
+ `http://t7ic5bq7b.hn-bkt.clouddn.com/rss.json`
